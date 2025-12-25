@@ -13,28 +13,12 @@ if os.getenv("Gemma_KEY"):
     os.environ["HUGGING_FACE_HUB_TOKEN"] = os.getenv("Gemma_KEY")
 
 
-# Custom embedding class from the notebook
-class EmbeddingGemmaEmbeddings(HuggingFaceEmbeddings):
-    def __init__(self, **kwargs):
-        super().__init__(
-            model_name="google/embeddinggemma-300m",
-            encode_kwargs={"normalize_embeddings": True},
-            **kwargs
-        )
-
-    def embed_documents(self, texts):
-        # You can also change "none" to the real title (filename/chapter name) for better stability
-        texts = [f"title: none | text: {t}" for t in texts]
-        return super().embed_documents(texts)
-
-    def embed_query(self, text):
-        # Official retrieval suggestion prefix
-        return super().embed_query(f"task: search result | query: {text}")
-
 # Load the vector store
 @st.cache_resource
 def load_vector_store():
-    embedding_model = EmbeddingGemmaEmbeddings()
+    embedding_model = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    )
     vectorstore = FAISS.load_local("faiss_db", embedding_model, allow_dangerous_deserialization=True)
     return vectorstore
 
@@ -45,7 +29,7 @@ retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
 llm = ChatGroq(
     temperature=0,
     groq_api_key=os.getenv("GROQ_API_KEY"),
-    model_name="openai/gpt-oss-20b",
+    model_name="gemma-7b-it",
 )
 
 # Set up the prompt template
